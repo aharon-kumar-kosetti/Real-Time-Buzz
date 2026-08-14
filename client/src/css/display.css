@@ -1,0 +1,132 @@
+body {
+  background-color: #020617; /* Even darker for projector contrast */
+  overflow: hidden; /* Prevent scroll on big screen */
+}
+
+.display-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header-banner {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.header-banner h1 {
+  font-size: 4rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.round-info {
+  font-size: 2rem;
+  color: var(--text-secondary);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+/* First Buzz Hero Section */
+.first-buzz-hero {
+  text-align: center;
+  padding: 4rem;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 800px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  transform: scale(0.9);
+  opacity: 0;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.first-buzz-hero.visible {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.first-buzz-title {
+  font-size: 2.5rem;
+  color: #fff;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 5px;
+}
+
+.first-buzz-name {
+  font-size: 5rem;
+  font-weight: 900;
+  color: #fff;
+  margin: 1rem 0;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+/* Queue Grid */
+.queue-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  width: 100%;
+  margin-top: 3rem;
+}
+
+.queue-card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  border: 2px solid var(--border);
+  font-size: 1.5rem;
+  opacity: 0.3;
+  transition: all 0.3s;
+}
+
+.queue-card.filled {
+  opacity: 1;
+  border-color: rgba(255,255,255,0.2);
+}
+
+.queue-card.answering {
+  transform: translateY(-10px);
+  box-shadow: 0 10px 20px rgba(34, 197, 94, 0.2);
+  border-color: var(--accent);
+}
+
+/* Live Scores Footer */
+.scores-footer {
+  margin-top: auto;
+  padding: 2rem;
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  justify-content: space-around;
+  border-top: 1px solid var(--border);
+}
+
+.score-box {
+  text-align: center;
+}
+
+.score-house {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.score-points {
+  font-size: 3rem;
+  font-weight: 900;
+}

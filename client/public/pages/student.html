@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>House Buzz - Student</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/student.css">
+</head>
+<body>
+  <div class="container" id="app">
+    
+    <!-- JOIN SECTION -->
+    <div id="join-section" class="card" style="margin-top: 2rem;">
+      <h2 class="text-center mb-4">HOUSE BUZZ</h2>
+      <input type="text" id="game-code" placeholder="6-Digit Game Code" style="text-transform: uppercase;">
+      <input type="text" id="player-name" placeholder="Your Name">
+      <select id="player-house">
+        <option value="">Select House...</option>
+        <option value="PRUDHVI">🌍 PRUDHVI (Earth)</option>
+        <option value="AGNI">🔥 AGNI (Fire)</option>
+        <option value="JAL">💧 JAL (Water)</option>
+        <option value="VAYU">🌬️ VAYU (Wind)</option>
+        <option value="AKASH">✨ AKASH (Sky)</option>
+      </select>
+      <button id="join-btn" class="btn-primary" style="width: 100%;">JOIN GAME</button>
+      <div id="join-error" class="text-center mt-4" style="color: var(--error);"></div>
+    </div>
+
+    <!-- PLAY SECTION -->
+    <div id="play-section" class="hidden">
+      <div class="card flex justify-between items-center" id="player-header">
+        <div>
+          <span id="player-house-badge" class="house-badge"></span>
+          <div style="margin-top: 5px;">
+            <strong id="display-name"></strong> (<span id="display-code"></span>)
+          </div>
+        </div>
+        <button id="leave-btn" style="padding: 0.5rem 1rem;">Leave</button>
+      </div>
+
+      <div class="status-banner" id="status-banner">
+        Waiting for round to start...
+      </div>
+
+      <div class="buzzer-container">
+        <button id="buzz-btn" class="buzz-btn" disabled>BUZZ</button>
+        <div id="queue-position" class="queue-position-display hidden">
+          Your Position: <span id="pos-number"></span>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <h3 class="text-center">🏆 Live Scores</h3>
+        <div id="scores-list">
+          <p class="text-center text-secondary">Waiting for scores...</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/socket.js"></script>
+  <script src="../js/student.js"></script>
+</body>
+</html>

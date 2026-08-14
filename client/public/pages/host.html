@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>House Buzz - Host Dashboard</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 768px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+    .queue-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .queue-item.answering {
+      background-color: rgba(34, 197, 94, 0.1);
+      border-left: 4px solid var(--accent);
+    }
+    .score-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <div id="login-section" class="card">
+      <h2>Host Login</h2>
+      <input type="email" id="email" placeholder="Email" value="host@housebuzz.local">
+      <input type="password" id="password" placeholder="Password" value="password123">
+      <button id="login-btn" class="btn-primary">Login</button>
+      <div id="login-error" style="color: var(--error); margin-top: 10px;"></div>
+    </div>
+
+    <div id="dashboard-section" class="hidden">
+      <div class="card flex justify-between items-center">
+        <h2>Host Control Panel</h2>
+        <div>
+          <button id="create-game-btn" class="btn-primary">Create Game</button>
+          <button id="logout-btn">Logout</button>
+        </div>
+      </div>
+
+      <div id="game-controls" class="hidden">
+        <div class="card">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h3>Game: <span id="game-code-display" class="house-badge" style="background:var(--border)"></span></h3>
+              <p>Status: <span id="game-status-display"></span></p>
+            </div>
+            <div>
+              <button id="start-game-btn" class="btn-primary">Start Game</button>
+              <button id="end-game-btn" class="btn-error hidden">End Game</button>
+            </div>
+          </div>
+          
+          <div id="round-creation" class="hidden flex gap-4 items-center">
+            <input type="number" id="round-number" placeholder="Round #" style="width: 100px; margin:0">
+            <select id="presenting-house" style="margin:0; width: 150px">
+              <option value="">Presenting...</option>
+              <option value="PRUDHVI">PRUDHVI</option>
+              <option value="AGNI">AGNI</option>
+              <option value="JAL">JAL</option>
+              <option value="VAYU">VAYU</option>
+              <option value="AKASH">AKASH</option>
+            </select>
+            <button id="create-round-btn" class="btn-primary">Create Round</button>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- Left Column -->
+          <div>
+            <div id="round-controls" class="card hidden">
+              <h3>Round <span id="current-round-display"></span> Control</h3>
+              <p class="mb-4">Presenting: <span id="current-presenting-display" class="house-badge"></span></p>
+              
+              <div class="flex gap-2">
+                <button id="open-buzzer-btn" class="btn-primary" style="flex:1">Open Buzzer</button>
+                <button id="close-buzzer-btn" class="btn-error" style="flex:1" disabled>Close Buzzer</button>
+              </div>
+              
+              <div id="judge-controls" class="mt-4 hidden">
+                <h4>Judge Answer</h4>
+                <p class="mb-2">Answering: <strong id="answering-player-name"></strong></p>
+                <div class="flex gap-2">
+                  <button id="mark-correct-btn" class="btn-primary" style="flex:1">Correct</button>
+                  <button id="mark-wrong-btn" class="btn-error" style="flex:1">Wrong</button>
+                  <button id="mark-timeout-btn" style="flex:1">Timeout</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Buzzer Queue</h3>
+              <div id="queue-list">
+                <p class="text-secondary">No one in queue</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div>
+            <div class="card">
+              <h3>Live Scores</h3>
+              <div id="scores-list">
+                <p class="text-secondary">No scores yet</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Connected Players (<span id="players-count">0</span>)</h3>
+              <button id="refresh-players-btn" style="width:100%; margin-bottom: 1rem">Refresh List</button>
+              <div id="players-list" style="max-height: 200px; overflow-y: auto;">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/socket.js"></script>
+  <script src="../js/host.js"></script>
+</body>
+</html>

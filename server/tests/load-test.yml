@@ -1,0 +1,39 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    - duration: 30
+      arrivalRate: 35
+      name: "Ramp up to 1000 users over 30 seconds"
+  variables:
+    gameId: "YOUR_GAME_ID_HERE"
+    roundId: "YOUR_ROUND_ID_HERE"
+    gameCode: "YOUR_GAME_CODE_HERE"
+  processor: "./test-helpers.js"
+
+scenarios:
+  - name: "Student Join and Buzz"
+    flow:
+      - post:
+          url: "/api/players/join"
+          json:
+            gameCode: "{{ gameCode }}"
+            name: "LoadTester_{{ $randomNumber(1, 10000) }}"
+            house: "PRUDHVI" # All load testers join same house for this test
+          capture:
+            - json: "$.token"
+              as: "playerToken"
+            - json: "$.data.player.player_id"
+              as: "playerId"
+      
+      # Simulate a 5-second wait before buzzing (watching the screen)
+      - think: 5
+
+      # The massive spike: Every user attempts to buzz within the same small window
+      - post:
+          url: "/api/games/{{ gameId }}/rounds/{{ roundId }}/buzz"
+          headers:
+            Authorization: "Bearer {{ playerToken }}"
+          expect:
+            # We expect a mix of 200 (queue pos 1-4) and 400s (Queue is full or already buzzed)
+            # The test succeeds if the backend doesn't crash or return 500s.
+            - statusCode: [200, 400, 409]

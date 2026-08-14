@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>House Buzz - Audience Display</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <link rel="stylesheet" href="../css/display.css">
+</head>
+<body>
+
+  <!-- Game Join Setup (Admin configures which game to watch) -->
+  <div id="setup-section" class="container" style="margin-top: 10vh;">
+    <div class="card text-center">
+      <h2>Configure Audience Display</h2>
+      <input type="text" id="game-code" placeholder="Enter Game Code" style="text-transform: uppercase; font-size: 2rem; text-align: center;">
+      <button id="connect-btn" class="btn-primary" style="font-size: 1.5rem;">Connect Display</button>
+      <div id="error-msg" style="color: var(--error); margin-top: 1rem;"></div>
+    </div>
+  </div>
+
+  <!-- Main Audience Display -->
+  <div id="display-section" class="display-container hidden">
+    
+    <div class="header-banner">
+      <h1>HOUSE BUZZ</h1>
+      <div class="round-info">
+        ROUND <span id="round-number">-</span> | PRESENTING: <span id="presenting-house" class="house-badge" style="font-size: 1.5rem;">WAITING...</span>
+      </div>
+    </div>
+
+    <div class="main-content">
+      
+      <!-- Center Hero for 1st Buzz -->
+      <div id="first-buzz-hero" class="first-buzz-hero">
+        <div class="first-buzz-title">🏆 FIRST BUZZ! 🏆</div>
+        <div id="first-buzz-house" class="house-badge" style="font-size: 2rem; margin-bottom: 1rem;"></div>
+        <div id="first-buzz-name" class="first-buzz-name"></div>
+        <div id="first-buzz-status" style="font-size: 1.5rem; color: var(--accent); margin-top: 1rem; font-weight:bold;">ANSWERING NOW...</div>
+      </div>
+
+      <!-- Queue Tracker -->
+      <div class="queue-grid">
+        <div class="queue-card" id="queue-slot-1">
+          <div>1ST</div>
+          <div class="slot-content text-secondary mt-4">Waiting...</div>
+        </div>
+        <div class="queue-card" id="queue-slot-2">
+          <div>2ND</div>
+          <div class="slot-content text-secondary mt-4">Waiting...</div>
+        </div>
+        <div class="queue-card" id="queue-slot-3">
+          <div>3RD</div>
+          <div class="slot-content text-secondary mt-4">Waiting...</div>
+        </div>
+        <div class="queue-card" id="queue-slot-4">
+          <div>4TH</div>
+          <div class="slot-content text-secondary mt-4">Waiting...</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Live Scores -->
+    <div class="scores-footer" id="scores-container">
+      <!-- Injected via JS -->
+      <h2 class="text-secondary" style="margin: auto;">Waiting for scores...</h2>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/socket.js"></script>
+  <script src="../js/display.js"></script>
+</body>
+</html>
