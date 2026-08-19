@@ -4,10 +4,16 @@ const { ValidationError, GameStateError } = require('../utils/errors');
 exports.createRound = async (req, res, next) => {
   try {
     const { gameId } = req.params;
-    const { roundNumber, presentingHouse } = req.body;
+    let { roundNumber, presentingHouse } = req.body;
 
-    if (!roundNumber || !presentingHouse) {
-      return next(new ValidationError('Round number and presenting house are required'));
+    if (!presentingHouse) {
+      presentingHouse = 'ALL';
+    }
+
+    if (!roundNumber) {
+      roundNumber = Math.floor(1000 + Math.random() * 9000);
+    } else {
+      roundNumber = parseInt(roundNumber, 10);
     }
 
     // Verify game exists and belongs to host
@@ -42,11 +48,12 @@ exports.createRound = async (req, res, next) => {
 exports.openBuzzer = async (req, res, next) => {
   try {
     const { roundId } = req.params;
+    const { duration } = req.body || {};
     
-    // Check round exists and is ACTIVE
+    // Check round exists
     const roundResult = await pool.query('SELECT * FROM rounds WHERE round_id = $1', [roundId]);
     if (roundResult.rows.length === 0) return next(new ValidationError('Round not found', 404));
-    if (roundResult.rows[0].status !== 'ACTIVE') return next(new GameStateError('Round is not active'));
+    if (roundResult.rows[0].status === 'COMPLETED') return next(new GameStateError('Round is already completed'));
 
     const result = await pool.query(
       "UPDATE rounds SET status = 'BUZZER_OPEN' WHERE round_id = $1 RETURNING *",
@@ -56,7 +63,9 @@ exports.openBuzzer = async (req, res, next) => {
     const io = req.app.get('io');
     io.to(`game:${roundResult.rows[0].game_id}`).emit('round:status-change', {
       roundId,
-      status: 'BUZZER_OPEN'
+      status: 'BUZZER_OPEN',
+      duration: duration ? parseInt(duration, 10) : null,
+      presentingHouse: roundResult.rows[0].presenting_house
     });
     
     res.status(200).json({
@@ -74,16 +83,14 @@ exports.closeBuzzer = async (req, res, next) => {
   try {
     const { roundId } = req.params;
     
+    const roundResult = await pool.query('SELECT game_id, status FROM rounds WHERE round_id = $1', [roundId]);
+    if (roundResult.rows.length === 0) return next(new ValidationError('Round not found', 404));
+
     const result = await pool.query(
-      "UPDATE rounds SET status = 'BUZZER_LOCKED' WHERE round_id = $1 AND status = 'BUZZER_OPEN' RETURNING *",
+      "UPDATE rounds SET status = 'BUZZER_LOCKED' WHERE round_id = $1 RETURNING *",
       [roundId]
     );
 
-    if (result.rows.length === 0) {
-      return next(new GameStateError('Buzzer is not currently open'));
-    }
-
-    const roundResult = await pool.query('SELECT game_id FROM rounds WHERE round_id = $1', [roundId]);
     const io = req.app.get('io');
     io.to(`game:${roundResult.rows[0].game_id}`).emit('round:status-change', {
       roundId,
@@ -98,6 +105,55 @@ exports.closeBuzzer = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+exports.resetBuzzer = async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const { roundId } = req.params;
+    
+    await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
+
+    const roundResult = await client.query('SELECT game_id, status FROM rounds WHERE round_id = $1 FOR UPDATE', [roundId]);
+    if (roundResult.rows.length === 0) {
+      throw new ValidationError('Round not found', 404);
+    }
+
+    // Clear buzz queue for this round
+    await client.query('DELETE FROM buzz_queue WHERE round_id = $1', [roundId]);
+
+    // Reset answering player and lock buzzer
+    const result = await client.query(
+      "UPDATE rounds SET status = 'BUZZER_LOCKED', current_answering_player_id = NULL, answer_start_time = NULL WHERE round_id = $1 RETURNING *",
+      [roundId]
+    );
+
+    await client.query('COMMIT');
+
+    const io = req.app.get('io');
+    io.to(`game:${roundResult.rows[0].game_id}`).emit('round:status-change', {
+      roundId,
+      status: 'BUZZER_LOCKED'
+    });
+    io.to(`game:${roundResult.rows[0].game_id}`).emit('buzz:queue-update', {
+      roundId,
+      queue: []
+    });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Buzzer and queue reset successfully',
+      data: {
+        round: result.rows[0],
+        queue: []
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    next(error);
+  } finally {
+    client.release();
   }
 };
 

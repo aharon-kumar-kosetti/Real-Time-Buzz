@@ -1,25 +1,54 @@
 const pool = require('../database/pool');
 const { ValidationError, GameStateError, ForbiddenError } = require('../utils/errors');
-const { generateGameCode } = require('../utils/helpers');
+const { generateGameCode, VALID_HOUSES } = require('../utils/helpers');
 
 exports.createGame = async (req, res, next) => {
+  const client = await pool.connect();
   try {
     const hostId = req.user.user_id; // From verifyToken middleware
+    await client.query('BEGIN');
+
     const gameCode = generateGameCode();
 
-    const result = await pool.query(
+    const result = await client.query(
       'INSERT INTO games (game_code, host_id) VALUES ($1, $2) RETURNING game_id, game_code, status, created_at',
       [gameCode, hostId]
     );
+    const game = result.rows[0];
+    const houseCodes = {};
+
+    for (const house of VALID_HOUSES) {
+      let houseCode;
+      let inserted = false;
+      while (!inserted) {
+        houseCode = generateGameCode();
+        try {
+          await client.query(
+            'INSERT INTO game_house_codes (game_id, house, game_code) VALUES ($1, $2, $3)',
+            [game.game_id, house, houseCode]
+          );
+          inserted = true;
+        } catch (error) {
+          if (error.code !== '23505') throw error;
+        }
+      }
+      houseCodes[house] = houseCode;
+    }
+
+    await client.query('COMMIT');
+    game.house_codes = houseCodes;
 
     res.status(201).json({
       status: 'success',
       data: {
-        game: result.rows[0]
+        game
       }
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     next(error);
+  } finally {
+    client.release();
   }
 };
 
@@ -94,11 +123,23 @@ exports.getGameStatus = async (req, res, next) => {
 
     if (!game) return next(new ValidationError('Game not found', 404));
 
-    // Fetch active round
-    const roundResult = await pool.query("SELECT * FROM rounds WHERE game_id = $1 AND status = 'ACTIVE' ORDER BY created_at DESC LIMIT 1", [gameId]);
+    // Fetch latest round (whether ACTIVE, BUZZER_OPEN, or BUZZER_LOCKED)
+    const roundResult = await pool.query(
+      "SELECT * FROM rounds WHERE game_id = $1 ORDER BY created_at DESC LIMIT 1",
+      [gameId]
+    );
     if (roundResult.rows.length > 0) {
       game.currentRound = roundResult.rows[0];
     }
+
+    const houseCodesResult = await pool.query(
+      'SELECT house, game_code FROM game_house_codes WHERE game_id = $1 ORDER BY house',
+      [gameId]
+    );
+    game.house_codes = houseCodesResult.rows.reduce((codes, row) => {
+      codes[row.house] = row.game_code;
+      return codes;
+    }, {});
 
     res.status(200).json({
       status: 'success',

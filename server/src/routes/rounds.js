@@ -10,6 +10,7 @@ const router = express.Router({ mergeParams: true });
 router.post('/create', verifyToken, restrictTo('host'), roundController.createRound);
 router.post('/:roundId/open-buzzer', verifyToken, restrictTo('host'), roundController.openBuzzer);
 router.post('/:roundId/close-buzzer', verifyToken, restrictTo('host'), roundController.closeBuzzer);
+router.post('/:roundId/reset-buzzer', verifyToken, restrictTo('host'), roundController.resetBuzzer);
 router.post('/:roundId/mark-answer', verifyToken, restrictTo('host'), roundController.markAnswer);
 
 // Shared/Public routes

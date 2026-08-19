@@ -3,8 +3,6 @@ const { ValidationError, GameStateError } = require('../utils/errors');
 const { generateSessionToken } = require('../utils/helpers');
 const jwt = require('jsonwebtoken');
 
-const VALID_HOUSES = ['PRUDHVI', 'AGNI', 'JAL', 'VAYU', 'AKASH'];
-
 // A function to issue a JWT specifically for students, since students don't 'register' with a password
 const signStudentToken = (id) => {
   return jwt.sign({ id, role: 'student' }, process.env.JWT_SECRET, {
@@ -15,25 +13,27 @@ const signStudentToken = (id) => {
 exports.joinGame = async (req, res, next) => {
   const client = await pool.connect();
   try {
-    const { gameCode, name, house } = req.body;
+    const { gameCode, name } = req.body;
 
     // 1. Input Validation
-    if (!gameCode || !name || !house) {
+    if (!gameCode || !name) {
       return next(new ValidationError('Missing required fields'));
     }
     const cleanName = name.trim();
     if (cleanName.length < 2 || cleanName.length > 30) {
       return next(new ValidationError('Name must be between 2 and 30 characters'));
     }
-    const cleanHouse = house.toUpperCase();
-    if (!VALID_HOUSES.includes(cleanHouse)) {
-      return next(new ValidationError('Invalid house selection'));
-    }
-
     await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
 
     // 2. Game Lookup
-    const gameResult = await client.query('SELECT game_id, status FROM games WHERE game_code = $1', [gameCode]);
+    const gameResult = await client.query(
+      `SELECT g.game_id, g.status, COALESCE(ghc.house, 'PRUDHVI') AS house
+       FROM games g
+       LEFT JOIN game_house_codes ghc ON ghc.game_id = g.game_id
+       WHERE ghc.game_code = $1 OR g.game_code = $1
+       LIMIT 1`,
+      [gameCode.trim().toUpperCase()]
+    );
     const game = gameResult.rows[0];
 
     if (!game) {
@@ -44,15 +44,34 @@ exports.joinGame = async (req, res, next) => {
     if (game.status === 'COMPLETED') {
       throw new GameStateError('This game has already ended.');
     }
+    const cleanHouse = game.house;
 
-    // 3. Prevent Duplicates
+    // 3. Prevent Duplicates / Allow Reconnect
     const existingPlayer = await client.query(
-      'SELECT player_id FROM players WHERE game_id = $1 AND name = $2 AND house = $3',
+      `SELECT player_id, game_id, name, house, player_code, session_token, connected 
+       FROM players 
+       WHERE game_id = $1 AND LOWER(name) = LOWER($2) AND house = $3`,
       [game.game_id, cleanName, cleanHouse]
     );
 
     if (existingPlayer.rows.length > 0) {
-      throw new ValidationError('A player with this name already exists in this house');
+      const existing = existingPlayer.rows[0];
+      await client.query(
+        'UPDATE players SET connected = TRUE, last_heartbeat = CURRENT_TIMESTAMP WHERE player_id = $1',
+        [existing.player_id]
+      );
+      await client.query('COMMIT');
+      
+      const token = signStudentToken(existing.player_id);
+      existing.game_code = gameCode;
+
+      return res.status(200).json({
+        status: 'success',
+        token,
+        data: {
+          player: existing
+        }
+      });
     }
 
     // 4. Generate sequential player code per house per game
@@ -79,13 +98,14 @@ exports.joinGame = async (req, res, next) => {
     );
 
     const newPlayer = insertResult.rows[0];
+    newPlayer.game_code = gameCode;
     
     // Also init their scores row if not exist
     await client.query(`
       INSERT INTO scores (game_id, house) 
       VALUES ($1, $2) 
       ON CONFLICT (game_id, house) DO NOTHING
-    `, [game.game_id, house]);
+    `, [game.game_id, cleanHouse]);
 
     await client.query('COMMIT');
 

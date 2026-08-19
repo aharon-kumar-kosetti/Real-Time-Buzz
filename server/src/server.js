@@ -40,7 +40,7 @@ const io = new Server(server, {
 });
 
 // Setup Redis Adapter if REDIS_URL is provided
-if (process.env.REDIS_URL) {
+if (process.env.REDIS_URL && process.env.REDIS_URL.trim() !== '') {
   const pubClient = createClient({ url: process.env.REDIS_URL });
   const subClient = pubClient.duplicate();
 

@@ -5,7 +5,11 @@ exports.buzz = async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { roundId } = req.params;
-    const playerId = req.user.player_id; // From JWT
+    const playerId = req.user?.player_id || req.user?.id;
+
+    if (!playerId) {
+      throw new UnauthorizedError('Player ID missing from token. Please log in again.');
+    }
 
     // 1. Start transaction
     await client.query('BEGIN ISOLATION LEVEL SERIALIZABLE');
@@ -23,7 +27,7 @@ exports.buzz = async (req, res, next) => {
     const round = roundResult.rows[0];
     
     if (round.status !== 'BUZZER_OPEN') {
-      throw new GameStateError('Buzzer is not open');
+      throw new GameStateError('Buzzer is currently closed / locked');
     }
     
     // 3. Verify player
@@ -31,12 +35,15 @@ exports.buzz = async (req, res, next) => {
     const player = playerResult.rows[0];
 
     if (!player) {
-      throw new UnauthorizedError('Player not found');
+      throw new UnauthorizedError('Player record not found');
     }
 
-    // 4. Check if player's house is presenting
-    if (player.house === round.presenting_house) {
-      throw new ValidationError('Presenting house cannot buzz');
+    // 4. Check if player's house is presenting (allow all if presenting_house is ALL, OPEN, NONE, or blank)
+    const presentingHouse = (round.presenting_house || '').toUpperCase();
+    if (presentingHouse && !['ALL', 'NONE', 'OPEN', 'EVERY TEAM'].includes(presentingHouse)) {
+      if (player.house.toUpperCase() === presentingHouse) {
+        throw new ValidationError(`House ${presentingHouse} is presenting and cannot buzz in this round`);
+      }
     }
     
     // 5. Check if player already buzzed this round
@@ -46,7 +53,7 @@ exports.buzz = async (req, res, next) => {
     );
     
     if (alreadyBuzzed.rows.length > 0) {
-      throw new ValidationError('Player already buzzed');
+      throw new ValidationError('You have already buzzed for this round');
     }
     
     // 6. Get current queue count
@@ -55,13 +62,9 @@ exports.buzz = async (req, res, next) => {
       [roundId]
     );
     
-    const currentCount = parseInt(queueCountResult.rows[0].count);
+    const currentCount = parseInt(queueCountResult.rows[0].count, 10);
     
-    if (currentCount >= 4) {
-      throw new ValidationError('Queue is full');
-    }
-    
-    // 7. Insert into queue with server timestamp
+    // 7. Insert into queue with server timestamp (unlimited queue)
     const serverTime = Date.now();
     const queuePosition = currentCount + 1;
     
@@ -86,11 +89,6 @@ exports.buzz = async (req, res, next) => {
       );
     }
     
-    // If we just filled the queue (this was the 4th person), optionally auto-lock the buzzer
-    if (queuePosition === 4) {
-      await client.query("UPDATE rounds SET status = 'BUZZER_LOCKED' WHERE round_id = $1", [roundId]);
-    }
-    
     // Update player statistics
     let statColumn = '';
     if (queuePosition === 1) statColumn = 'first_place_buzzes';
@@ -98,14 +96,16 @@ exports.buzz = async (req, res, next) => {
     else if (queuePosition === 3) statColumn = 'third_place_buzzes';
     else if (queuePosition === 4) statColumn = 'fourth_place_buzzes';
 
-    await client.query(
-      `INSERT INTO player_statistics (player_id, game_id, total_buzzes, ${statColumn})
-       VALUES ($1, $2, 1, 1)
-       ON CONFLICT (player_id, game_id) DO UPDATE SET
-       total_buzzes = player_statistics.total_buzzes + 1,
-       ${statColumn} = player_statistics.${statColumn} + 1`,
-      [playerId, round.game_id]
-    );
+    if (statColumn) {
+      await client.query(
+        `INSERT INTO player_statistics (player_id, game_id, total_buzzes, ${statColumn})
+         VALUES ($1, $2, 1, 1)
+         ON CONFLICT (player_id, game_id) DO UPDATE SET
+         total_buzzes = player_statistics.total_buzzes + 1,
+         ${statColumn} = player_statistics.${statColumn} + 1`,
+        [playerId, round.game_id]
+      );
+    }
 
     // Update global total buzzes for house
     await client.query(
@@ -113,9 +113,15 @@ exports.buzz = async (req, res, next) => {
       [round.game_id, player.house]
     );
 
+    // Fetch complete ordered queue
+    const fullQueueResult = await client.query(
+      'SELECT player_id, player_name, house, queue_position, status FROM buzz_queue WHERE round_id = $1 ORDER BY queue_position ASC',
+      [roundId]
+    );
+
     await client.query('COMMIT');
     
-    // Broadcast queue update to all clients
+    // Broadcast queue update to all connected clients in game
     const io = req.app.get('io');
     io.to(`game:${round.game_id}`).emit('buzz:queue-update', {
       roundId,
@@ -124,21 +130,21 @@ exports.buzz = async (req, res, next) => {
       playerName: player.name,
       house: player.house,
       timestamp: serverTime,
-      isAnswering: queuePosition === 1
+      isAnswering: queuePosition === 1,
+      queue: fullQueueResult.rows.map(q => ({
+        playerId: q.player_id,
+        playerName: q.player_name,
+        house: q.house,
+        queuePosition: q.queue_position,
+        status: q.status
+      }))
     });
-    
-    // If buzzer locked, broadcast that too
-    if (queuePosition === 4) {
-      io.to(`game:${round.game_id}`).emit('round:status-change', {
-        roundId,
-        status: 'BUZZER_LOCKED'
-      });
-    }
 
     res.status(200).json({
       status: 'success',
       data: {
-        queuePosition: result.rows[0].queue_position
+        queuePosition: result.rows[0].queue_position,
+        queue: fullQueueResult.rows
       }
     });
     

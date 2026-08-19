@@ -13,8 +13,8 @@ module.exports = (io) => {
       socket.join(room);
       winston.info(`Socket ${socket.id} joined room ${room} as ${role}`);
 
-      // If it's a student, we can optionally broadcast they connected
-      if (role === 'student' && playerId) {
+      // If it's a student/player, broadcast they connected and update DB
+      if ((role === 'student' || role === 'player') && playerId) {
         // Mark connected in DB
         try {
           await pool.query(

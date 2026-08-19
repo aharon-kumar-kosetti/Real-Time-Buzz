@@ -31,6 +31,18 @@ CREATE INDEX IF NOT EXISTS idx_games_host_id ON games(host_id);
 CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
 CREATE INDEX IF NOT EXISTS idx_games_created ON games(created_at);
 
+-- House-specific join codes for a game
+CREATE TABLE IF NOT EXISTS game_house_codes (
+  game_house_code_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  game_id UUID NOT NULL REFERENCES games(game_id) ON DELETE CASCADE,
+  house VARCHAR(20) NOT NULL,
+  game_code VARCHAR(10) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(game_id, house)
+);
+CREATE INDEX IF NOT EXISTS idx_game_house_codes_game_id ON game_house_codes(game_id);
+CREATE INDEX IF NOT EXISTS idx_game_house_codes_code ON game_house_codes(game_code);
+
 -- `players` Table
 CREATE TABLE IF NOT EXISTS players (
   player_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -38,7 +50,7 @@ CREATE TABLE IF NOT EXISTS players (
   user_id UUID REFERENCES users(user_id),
   name VARCHAR(100) NOT NULL,
   house VARCHAR(20) NOT NULL, -- PRUDHVI, AGNI, JAL, VAYU, AKASH
-  player_code VARCHAR(10) NOT NULL, -- e.g., AGNI-001
+  player_code VARCHAR(50) NOT NULL, -- e.g., PRUDHVI-001
   session_token VARCHAR(255) UNIQUE NOT NULL,
   connected BOOLEAN DEFAULT TRUE,
   connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
