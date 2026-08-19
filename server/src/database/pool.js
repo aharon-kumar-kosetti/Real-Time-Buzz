@@ -1,6 +1,10 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is required. Add it to the server environment variables before starting the backend.');
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL.split('?')[0],
   max: 50, // Max connections per server
