@@ -64,20 +64,11 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/games', require('./routes/games'));
 app.use('/api/players', require('./routes/players'));
 
-// Serve the frontend when bundled with the backend; otherwise the frontend is deployed separately.
-const frontendDist = path.join(__dirname, '../../frontend/dist');
-if (fs.existsSync(path.join(frontendDist, 'index.html'))) {
-  app.use(express.static(frontendDist));
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/')) return next();
-    res.sendFile(path.join(frontendDist, 'index.html'));
-  });
-} else {
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api/')) return next();
-    res.status(404).json({ status: 'error', message: 'Frontend is deployed separately.' });
-  });
-}
+// Frontend is deployed separately on Vercel
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) return next();
+  res.status(404).json({ status: 'error', message: 'Frontend is deployed separately on Vercel.' });
+});
 
 // Global Error Handler
 app.use(require('./middleware/errorHandler'));

@@ -1,5 +1,7 @@
 {
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://real-time-buzz.onrender.com/api/$1" },
+    { "source": "/socket.io/(.*)", "destination": "https://real-time-buzz.onrender.com/socket.io/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
